@@ -1,0 +1,315 @@
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+@FunctionalInterface
+interface Check {
+    boolean validate(Customer customer);
+}
+
+public class Profile {
+    private String profileName;
+    private String customerType; // Mandatory
+    private String accountType; // Mandatory
+    private List<String> validSortCodes;
+    private List<String> validProductCodes;
+    private Map<String, String> tableChecks; // Table name -> Expected value
+    private List<Check> additionalChecks; // Functional checks
+
+    // Calculate score method
+    public int calculateSuitability(Customer customer) {
+        long totalChecks = tableChecks.size() + additionalChecks.size();
+        long passedChecks = tableChecks.entrySet().stream()
+                .filter(entry -> CommonChecks.matchesTableValue(entry.getKey(), entry.getValue()).validate(customer))
+                .count() +
+                additionalChecks.stream()
+                        .filter(check -> check.validate(customer))
+                        .count();
+        return (int) ((passedChecks / (double) totalChecks) * 100);
+    }
+
+    public Profile(String profileName, String customerType, String accountType, List<String> validSortCodes, List<String> validProductCodes, Map<String, String> tableChecks, List<Check> additionalChecks) {
+        this.profileName = profileName;
+        this.customerType = customerType;
+        this.accountType = accountType;
+        this.validSortCodes = validSortCodes;
+        this.validProductCodes = validProductCodes;
+        this.tableChecks = tableChecks;
+        this.additionalChecks = additionalChecks;
+    }
+
+    public String getProfileName() {
+        return profileName;
+    }
+
+    public void setProfileName(String profileName) {
+        this.profileName = profileName;
+    }
+
+    public String getCustomerType() {
+        return customerType;
+    }
+
+    public void setCustomerType(String customerType) {
+        this.customerType = customerType;
+    }
+
+    public String getAccountType() {
+        return accountType;
+    }
+
+    public void setAccountType(String accountType) {
+        this.accountType = accountType;
+    }
+
+    public List<String> getValidSortCodes() {
+        return validSortCodes;
+    }
+
+    public void setValidSortCodes(List<String> validSortCodes) {
+        this.validSortCodes = validSortCodes;
+    }
+
+    public List<String> getValidProductCodes() {
+        return validProductCodes;
+    }
+
+    public void setValidProductCodes(List<String> validProductCodes) {
+        this.validProductCodes = validProductCodes;
+    }
+
+    public Map<String, String> getTableChecks() {
+        return tableChecks;
+    }
+
+    public void setTableChecks(Map<String, String> tableChecks) {
+        this.tableChecks = tableChecks;
+    }
+
+    public List<Check> getAdditionalChecks() {
+        return additionalChecks;
+    }
+
+    public void setAdditionalChecks(List<Check> additionalChecks) {
+        this.additionalChecks = additionalChecks;
+    }
+}
+
+
+
+class Customer {
+    private String customerId;
+    private String customerType;
+    private String accountType;
+    private String accountNumber;
+    private String sortCode;
+    private String debitCard;
+    private LocalDate expiryDate;
+    private String productCode;
+    private Map<String, String> tableValues; // For table-specific checks
+
+    public Customer(String customerId, String customerType, String accountType, String accountNumber, String sortCode, String debitCard, LocalDate expiryDate, String productCode, Map<String, String> tableValues) {
+        this.customerId = customerId;
+        this.customerType = customerType;
+        this.accountType = accountType;
+        this.accountNumber = accountNumber;
+        this.sortCode = sortCode;
+        this.debitCard = debitCard;
+        this.expiryDate = expiryDate;
+        this.productCode = productCode;
+        this.tableValues = tableValues;
+    }
+
+    public String getCustomerId() {
+        return customerId;
+    }
+
+    public void setCustomerId(String customerId) {
+        this.customerId = customerId;
+    }
+
+    public String getCustomerType() {
+        return customerType;
+    }
+
+    public void setCustomerType(String customerType) {
+        this.customerType = customerType;
+    }
+
+    public String getAccountType() {
+        return accountType;
+    }
+
+    public void setAccountType(String accountType) {
+        this.accountType = accountType;
+    }
+
+    public String getAccountNumber() {
+        return accountNumber;
+    }
+
+    public void setAccountNumber(String accountNumber) {
+        this.accountNumber = accountNumber;
+    }
+
+    public String getSortCode() {
+        return sortCode;
+    }
+
+    public void setSortCode(String sortCode) {
+        this.sortCode = sortCode;
+    }
+
+    public String getDebitCard() {
+        return debitCard;
+    }
+
+    public void setDebitCard(String debitCard) {
+        this.debitCard = debitCard;
+    }
+
+    public LocalDate getExpiryDate() {
+        return expiryDate;
+    }
+
+    public void setExpiryDate(LocalDate expiryDate) {
+        this.expiryDate = expiryDate;
+    }
+
+    public String getProductCode() {
+        return productCode;
+    }
+
+    public void setProductCode(String productCode) {
+        this.productCode = productCode;
+    }
+
+    public Map<String, String> getTableValues() {
+        return tableValues;
+    }
+
+    public void setTableValues(Map<String, String> tableValues) {
+        this.tableValues = tableValues;
+    }
+    // Getters, Setters, and Constructors
+}
+
+
+class CommonChecks {
+
+    public static Check isDebitCardValid() {
+        return customer -> customer.getDebitCard() != null &&
+                customer.getDebitCard().length() == 16;
+    }
+
+    public static Check isExpiryDateValid() {
+        return customer -> customer.getExpiryDate().isAfter(LocalDate.now());
+    }
+
+    public static Check matchesTableValue(String table, String expectedValue) {
+        return customer -> expectedValue.equals(customer.getTableValues().get(table));
+    }
+
+    public static void main(String[] args) {
+        Customer customer = new Customer("12345", "B", "Savings", "12345678", "121", "1234567890123456",
+                LocalDate.of(2025, 12, 31), "121", Map.of("a", "savings", "b", "sv", "c", "ssg"));
+
+        Profile personalNormal = new Profile("Personal Savings Normal", "P", "Savings",
+                List.of("121", "122"), List.of("121"),
+                Map.of("a", "savings", "b", "sv", "c", "ssg"),
+                List.of(CommonChecks.isDebitCardValid(), CommonChecks.isExpiryDateValid()));
+
+        Profile personalPremier = new Profile("Personal Savings Premier", "P", "Savings",
+                List.of("121", "123"), List.of("122"),
+                Map.of("a", "e", "b", "sdf", "c", "tk"),
+                List.of(CommonChecks.isDebitCardValid()));
+
+        Profile businessPremier = new Profile("Business Savings Premier", "B", "Savings",
+                List.of("121", "123"), List.of("122"),
+                Map.of("a", "e", "b", "sdf", "c", "tk"),
+                List.of(CommonChecks.isDebitCardValid()));
+
+        List<Profile> profiles = List.of(personalNormal, personalPremier,businessPremier);
+        ProfileEvaluator evaluator = new ProfileEvaluator();
+
+        List<ProfileReport> reports = evaluator.evaluateProfiles(customer, profiles);
+
+        reports.forEach(System.out::println);
+    }
+}
+
+class ProfileValidator {
+
+    public List<Profile> filterEligibleProfiles(Customer customer, List<Profile> profiles) {
+        return profiles.stream()
+                .filter(profile -> profile.getCustomerType().equals(customer.getCustomerType()))
+                .filter(profile -> profile.getAccountType().equals(customer.getAccountType()))
+                .filter(profile -> profile.getValidSortCodes().contains(customer.getSortCode()))
+                .filter(profile -> profile.getValidProductCodes().contains(customer.getProductCode()))
+                .filter(profile -> profile.getTableChecks().entrySet().stream()
+                        .allMatch(entry -> CommonChecks.matchesTableValue(entry.getKey(), entry.getValue()).validate(customer)))
+                .filter(profile -> profile.getAdditionalChecks().stream()
+                        .allMatch(check -> check.validate(customer)))
+                .collect(Collectors.toList());
+    }
+}
+
+ class ProfileEvaluator {
+
+    public List<ProfileReport> evaluateProfiles(Customer customer, List<Profile> profiles) {
+        return profiles.stream()
+                // Mandatory checks
+                .filter(profile -> profile.getCustomerType().equals(customer.getCustomerType()))
+                .filter(profile -> profile.getAccountType().equals(customer.getAccountType()))
+                // Generate a report after applying subsequent checks
+                .map(profile -> generateReport(profile, customer))
+                .collect(Collectors.toList());
+    }
+
+    private ProfileReport generateReport(Profile profile, Customer customer) {
+        List<String> failedChecks = new ArrayList<>();
+
+        // Table-specific checks
+        profile.getTableChecks().forEach((table, expectedValue) -> {
+            if (!CommonChecks.matchesTableValue(table, expectedValue).validate(customer)) {
+                failedChecks.add("Table " + table + " expected: " + expectedValue);
+            }
+        });
+
+        // Additional checks
+        profile.getAdditionalChecks().forEach(check -> {
+            if (!check.validate(customer)) {
+                failedChecks.add("Custom check failed for profile: " + profile.getProfileName());
+            }
+        });
+
+        int suitabilityScore = profile.calculateSuitability(customer);
+
+        return new ProfileReport(profile.getProfileName(), suitabilityScore, failedChecks);
+    }
+}
+
+
+class ProfileReport {
+    private String profileName;
+    private int suitabilityScore;
+    private List<String> failedChecks;
+
+    public ProfileReport(String profileName, int suitabilityScore, List<String> failedChecks) {
+        this.profileName = profileName;
+        this.suitabilityScore = suitabilityScore;
+        this.failedChecks = failedChecks;
+    }
+
+    // Getters and toString() method for reporting
+    @Override
+    public String toString() {
+        return "Profile: " + profileName + ", Suitability: " + suitabilityScore + "%, Failed Checks: " + failedChecks;
+    }
+}
+
+
+
+
