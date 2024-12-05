@@ -1,0 +1,122 @@
+import java.lang.reflect.Method;
+import java.util.*;
+
+class Stud{
+    int id;
+    String name;
+
+    public Stud(int id, String name) {
+        this.id = id;
+        this.name = name;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+}
+
+public class MethodExecutor {
+
+    public void method4(String param1, String param2) {
+        System.out.println("Executing Method 4: " + param1 + ", " + param2);
+    }
+    public void method4(String param1) {
+        System.out.println("Executing Method 1: " + param1);
+    }
+
+    public void method21(int param1) {
+        System.out.println("Executing Method 21: " + param1);
+    }
+
+    public void methodStudent(int p1, Stud p2){
+        System.out.println("inside method stud");
+    }
+
+    public void method21(int param1,double param2) {
+        System.out.println("Executing Method 21: " + param1 +", "+ param2);
+    }
+
+    public void method5(String param1, String param2) {
+        System.out.println("Executing Method 5: " + param1 + ", " + param2);
+    }
+
+    public static void main(String[] args) throws Exception {
+        MethodExecutor executor = new MethodExecutor();
+        Stud ss = new Stud(1,"ram");
+        // Map input to specific method names and parameters
+        Map<String, List<Object[]>> methodMap = new HashMap<>();
+        methodMap.put("a", Arrays.asList(
+                new Object[]{"method4", "First", "Second"},
+                new Object[]{"method4", "First"},
+                new Object[]{"method5", "Third", "Fourth"},
+                new Object[]{"method21", 1, 32.2},
+                new Object[]{"methodStudent", 1, ss}
+        ));
+
+        String input = "a";
+
+        if (methodMap.containsKey(input)) {
+            for (Object[] methodDetails : methodMap.get(input)) {
+                String methodName = (String) methodDetails[0];
+                Object[] params = Arrays.copyOfRange(methodDetails, 1, methodDetails.length);
+
+                // Find and invoke the method with matching name and parameters
+                Method method = findMethod(executor.getClass(), methodName, params);
+                if (method != null) {
+                    method.invoke(executor, params);
+                } else {
+                    System.out.println("Method not found: " + methodName);
+                }
+            }
+        }
+    }
+
+    // Helper to find a method by name and parameter types
+    private static Method findMethod(Class<?> clazz, String methodName, Object[] params) {
+        for (Method method : clazz.getDeclaredMethods()) {
+            if (method.getName().equals(methodName)) {
+                Class<?>[] paramTypes = method.getParameterTypes();
+                if (paramTypes.length == params.length) {
+                    boolean match = true;
+                    for (int i = 0; i < params.length; i++) {
+                        if (!isCompatible(paramTypes[i], params[i].getClass())) {
+                            match = false;
+                            break;
+                        }
+                    }
+                    if (match) return method;
+                }
+            }
+        }
+        return null;
+    }
+
+    // Compatibility check for primitive types and their wrappers
+    private static boolean isCompatible(Class<?> paramType, Class<?> argType) {
+        if (paramType.isPrimitive()) {
+            if (paramType == int.class && argType == Integer.class) return true;
+            if (paramType == double.class && argType == Double.class) return true;
+            if (paramType == float.class && argType == Float.class) return true;
+            if (paramType == long.class && argType == Long.class) return true;
+            if (paramType == boolean.class && argType == Boolean.class) return true;
+            if (paramType == char.class && argType == Character.class) return true;
+            if (paramType == short.class && argType == Short.class) return true;
+            if (paramType == byte.class && argType == Byte.class) return true;
+        } else {
+            return paramType.isAssignableFrom(argType);
+        }
+        return false;
+    }
+}
