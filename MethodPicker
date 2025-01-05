@@ -1,0 +1,244 @@
+import java.util.*;
+
+class Result {
+    private boolean success;
+    private String message;
+
+    public Result(boolean success, String message) {
+        this.success = success;
+        this.message = message;
+    }
+
+    public boolean isSuccess() {
+        return success;
+    }
+
+    public String getMessage() {
+        return message;
+    }
+
+    @Override
+    public String toString() {
+        return "Result{" +
+                "success=" + success +
+                ", message='" + message + '\'' +
+                '}';
+    }
+}
+
+interface MethodExecutor {
+    Result execute() throws Exception;
+}
+
+class CSMethod implements MethodExecutor {
+    private String methodName;
+    private Object param1;
+    private Object param2;
+
+    public CSMethod(String methodName, Object param1, Object param2) {
+        this.methodName = methodName;
+        this.param1 = param1;
+        this.param2 = param2;
+    }
+
+    public Result premierCustomerInd(Object param1, Object param2) throws Exception {
+        // Replace with actual method logic
+        return new Result(true, "Matches"); 
+    }
+
+    public Result tdlCustCheck(Object param1, Object param2) throws Exception {
+        // Replace with actual method logic
+        return new Result(false, "Failure reason"); 
+    }
+
+    @Override
+    public Result execute() throws Exception {
+        Result result = null;
+        switch (methodName) {
+            case "premierCustomerInd":
+                result = premierCustomerInd(param1, param2);
+                break;
+            case "tdlCustCheck":
+                result = tdlCustCheck(param1, param2);
+                break;
+            default:
+                throw new Exception("Invalid method name for CSMethod: " + methodName);
+        }
+        return result;
+    }
+}
+
+class UKBAMethod implements MethodExecutor {
+    // ... (Similar implementation as CSMethod with its own methods)
+    private String methodName;
+    private Object param1;
+    private Object param2;
+
+    public UKBAMethod(String methodName, Object param1, Object param2) {
+        this.methodName = methodName;
+        this.param1 = param1;
+        this.param2 = param2;
+    }
+
+    public Result ukba33(Object param1, Object param2) throws Exception {
+        // Replace with actual method logic
+        return new Result(true, "Matches"); 
+    }
+    public Result ukba34(Object param1, Object param2) throws Exception {
+        // Replace with actual method logic
+        return new Result(true, "Matches"); 
+    }
+
+    public Result ukba2(Object param1, Object param2) throws Exception {
+        // Replace with actual method logic
+        return new Result(false, "Failure reason"); 
+    }
+
+    @Override
+    public Result execute() throws Exception {
+        Result result = null;
+        switch (methodName) {
+            case "ukba33":
+                result = ukba33(param1, param2);
+                break;
+            case "ukba34":
+                result = ukba34(param1, param2);
+                break;
+            case "ukba2":
+                result = ukba2(param1, param2);
+                break;
+            default:
+                throw new Exception("Invalid method name for UKBAMethod: " + methodName);
+        }
+        return result;
+    }
+}
+
+class MethodExecutorFactory {
+    private static final Map<String, Map<String, Class<? extends MethodExecutor>>> methodMap = new HashMap<>();
+
+    static {
+        Map<String, Class<? extends MethodExecutor>> csMethods = new HashMap<>();
+        csMethods.put("premierCustomerInd", CSMethod.class);
+        csMethods.put("tdlCustCheck", CSMethod.class);
+        methodMap.put("CS", csMethods);
+
+        Map<String, Class<? extends MethodExecutor>> ukbaMethods = new HashMap<>();
+        ukbaMethods.put("ukba33", UKBAMethod.class);
+        ukbaMethods.put("ukba2", UKBAMethod.class);
+        ukbaMethods.put("ukba34", UKBAMethod.class);
+        methodMap.put("UKBA", ukbaMethods);
+    }
+
+    public static MethodExecutor create(String groupName, String methodName, Object param1, Object param2) throws Exception {
+        Map<String, Class<? extends MethodExecutor>> groupMethods = methodMap.get(groupName);
+        if (groupMethods == null) {
+            throw new Exception("Group not found: " + groupName);
+        }
+
+        Class<? extends MethodExecutor> methodClass = groupMethods.get(methodName);
+        if (methodClass == null) {
+            throw new Exception("Method not found: " + methodName);
+        }
+
+        return methodClass.getDeclaredConstructor(String.class, Object.class, Object.class)
+                .newInstance(methodName, param1, param2);
+    }
+}
+
+class MethodExecutionService {
+    public Map<String, Map<String, Result>> executeMethods(Map<String, List<String>> methodGroups, Object param1, Object param2) throws Exception {
+        Map<String, Map<String, Result>> results = new HashMap<>();
+
+        for (Map.Entry<String, List<String>> entry : methodGroups.entrySet()) {
+            String groupName = entry.getKey();
+            List<String> methods = entry.getValue();
+
+            Map<String, Result> groupResults = new HashMap<>();
+            results.put(groupName, groupResults);
+
+            System.out.println("Executing methods for group: " + groupName);
+            for (String method : methods) {
+                try {
+                    MethodExecutor executor = MethodExecutorFactory.create(groupName, method, param1, param2);
+                    Result result = executor.execute();
+                    groupResults.put(method, result);
+                } catch (Exception e) {
+                    groupResults.put(method, new Result(false, "Error: " + e.getMessage()));
+                }
+            }
+        }
+
+        return results;
+    }
+    public String getFinalResponse(Map<String, Map<String, Result>> allResults) {
+        int totalMethods = 0;
+        int successfulMethods = 0;
+        int csFailures = 0;
+        int ukbaFailures = 0;
+
+        StringBuilder failureReport = new StringBuilder();
+
+        for (Map.Entry<String, Map<String, Result>> groupEntry : allResults.entrySet()) {
+            String groupName = groupEntry.getKey();
+            Map<String, Result> groupResults = groupEntry.getValue();
+
+            totalMethods += groupResults.size();
+
+            for (Result result : groupResults.values()) {
+                if (result.isSuccess()) {
+                    successfulMethods++;
+                } else {
+                    if (groupName.equals("CS")) {
+                        csFailures++;
+                        System.out.println("inside accuracy failures");
+                    } else if (groupName.equals("UKBA")) {
+                        ukbaFailures++;
+                    }
+                    failureReport.append(groupName).append(": ").append(result.getMessage()).append("\n");
+                }
+            }
+        }
+
+        double totalPercentage = (double) successfulMethods / totalMethods * 100;
+        double accuracyPercentage = (csFailures == 0) ? 100 : (double) (totalMethods - csFailures) / totalMethods * 100;
+        double integrityPercentage = (ukbaFailures == 0) ? 100 : (double) (totalMethods - ukbaFailures) / totalMethods * 100;
+
+        String response = String.format(
+                "Total Percentage: %.2f%%\n" +
+                "Accuracy Percentage: %.2f%%\n" +
+                "Integrity Percentage: %.2f%%\n" +
+                "Failures:\n%s",
+                totalPercentage, accuracyPercentage, integrityPercentage, failureReport.toString()
+        );
+
+        return response;
+    }
+}
+
+public class Main1 {
+    public static void main(String[] args) throws Exception {
+        Map<String, List<String>> methodGroups = new HashMap<>();
+        methodGroups.put("CS", new ArrayList<>(List.of("premierCustomerInd", "tdlCustCheck")));
+        methodGroups.put("UKBA", new ArrayList<>(List.of( "ukba33","ukba34","ukba2","34")));
+
+        MethodExecutionService executionService = new MethodExecutionService();
+        Map<String, Map<String, Result>> allResults = executionService.executeMethods(methodGroups, "someParam1", "someParam2");
+
+        for (Map.Entry<String, Map<String, Result>> groupEntry : allResults.entrySet()) {
+            String groupName = groupEntry.getKey();
+            Map<String, Result> groupResults = groupEntry.getValue();
+
+            System.out.println("Results for group: " + groupName);
+            for (Map.Entry<String, Result> methodResult : groupResults.entrySet()) {
+                String methodName = methodResult.getKey();
+                Result result = methodResult.getValue();
+                System.out.println("Method: " + methodName + ", Result: " + result);
+            }
+        }
+    
+        String finalResponse = executionService.getFinalResponse(allResults);
+        System.out.println(finalResponse);
+    
+    }
+}
