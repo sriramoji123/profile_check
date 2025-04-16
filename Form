@@ -1,0 +1,134 @@
+import React, { useState, useEffect } from 'react';
+
+const rolesOptions = [
+  { value: 'admin', label: 'Administrator' },
+  { value: 'editor', label: 'Editor' },
+  { value: 'viewer', label: 'Viewer' },
+  { value: 'contributor', label: 'Contributor' },
+];
+
+const MyForm = ({ initialData, onSubmit }) => {
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    roles: [], // Array to hold selected role values
+    // Add other form fields as needed
+    ...initialData, // Populate with initial data if provided
+  });
+
+  useEffect(() => {
+    // If initialData is provided (for editing), update the form state
+    if (initialData) {
+      setFormData(initialData);
+    }
+  }, [initialData]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prevData) => ({
+      ...prevData,
+      [name]: value,
+    }));
+  };
+
+  const handleRoleChange = (selectedOptions) => {
+    // selectedOptions will be an array of objects { value: '...', label: '...' }
+    setFormData((prevData) => ({
+      ...prevData,
+      roles: selectedOptions ? selectedOptions.map((option) => option.value) : [],
+    }));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSubmit(formData); // Pass the form data to the parent component
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <div>
+        <label htmlFor="name">Name:</label>
+        <input
+          type="text"
+          id="name"
+          name="name"
+          value={formData.name}
+          onChange={handleChange}
+        />
+      </div>
+      <div>
+        <label htmlFor="email">Email:</label>
+        <input
+          type="email"
+          id="email"
+          name="email"
+          value={formData.email}
+          onChange={handleChange}
+        />
+      </div>
+      <div>
+        <label htmlFor="roles">Roles:</label>
+        <select
+          id="roles"
+          name="roles"
+          multiple // Enable multiple selection
+          value={formData.roles} // Control the selected values
+          onChange={(e) => {
+            const selectedOptions = Array.from(e.target.selectedOptions).map(
+              (option) => option.value
+            );
+            setFormData((prevData) => ({
+              ...prevData,
+              roles: selectedOptions,
+            }));
+          }}
+        >
+          {rolesOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <p>Selected Roles: {formData.roles.join(', ')}</p>
+      </div>
+
+      {/* Add other form fields here */}
+
+      <button type="submit">Submit</button>
+    </form>
+  );
+};
+
+const ParentComponent = () => {
+  const [formDataSubmitted, setFormDataSubmitted] = useState(null);
+  const [dataToEdit, setDataToEdit] = useState({
+    name: 'John Doe',
+    email: 'john.doe@example.com',
+    roles: ['admin', 'editor'], // Initial roles for editing
+    // ... other initial data
+  });
+  const [isEditing, setIsEditing] = useState(true); // Set to true to simulate editing
+
+  const handleFormSubmit = (data) => {
+    console.log('Form Data Submitted:', data);
+    setFormDataSubmitted(data);
+    setIsEditing(false); // Optionally switch to a "view" mode after submission
+  };
+
+  return (
+    <div>
+      <h1>React Form with Multiselect</h1>
+      {isEditing ? (
+        <MyForm initialData={dataToEdit} onSubmit={handleFormSubmit} />
+      ) : (
+        <div>
+          <h2>Submitted Data:</h2>
+          <pre>{JSON.stringify(formDataSubmitted, null, 2)}</pre>
+          <button onClick={() => setIsEditing(true)}>Edit</button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default ParentComponent;
