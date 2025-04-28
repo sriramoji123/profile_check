@@ -52,3 +52,128 @@ public class MqConfig {
         return factory;
     }
 }
+
+
+senderimport org.springframework.beans.factory.annotation.Value;
+import org.springframework.jms.core.JmsTemplate;
+import org.springframework.stereotype.Service;
+
+@Service
+public class MqSender {
+
+    private final JmsTemplate jmsTemplate;
+
+    @Value("${ibm.mq.queue}")
+    private String queue;
+
+    public MqSender(JmsTemplate jmsTemplate) {
+        this.jmsTemplate = jmsTemplate;
+    }
+
+    public void send(String message) {
+        jmsTemplate.convertAndSend(queue, message);
+    }
+}
+
+
+
+receiveimport org.springframework.jms.annotation.JmsListener;
+import org.springframework.stereotype.Component;
+
+@Component
+public class MqListener {
+
+    @JmsListener(destination = "${ibm.mq.queue}")
+    public void receive(String message) {
+        System.out.println("Received message: " + message);
+    }
+}
+
+
+
+configimport com.ibm.mq.jms.MQConnectionFactory;
+import com.ibm.msg.client.wmq.WMQConstants;
+import jakarta.jms.ConnectionFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.jms.config.DefaultJmsListenerContainerFactory;
+import org.springframework.jms.core.JmsTemplate;
+
+import javax.net.ssl.SSLContext;
+import java.io.FileInputStream;
+import java.security.KeyStore;
+import javax.net.ssl.TrustManagerFactory;
+
+@Configuration
+public class SecureMqConfig {
+
+    @Value("${ibm.mq.queueManager}")
+    private String queueManager;
+
+    @Value("${ibm.mq.channel}")
+    private String channel;
+
+    @Value("${ibm.mq.connName}")
+    private String connName;
+
+    @Value("${ibm.mq.user}")
+    private String user;
+
+    @Value("${ibm.mq.password}")
+    private String password;
+
+    @Value("${ibm.mq.cipherSuite}")
+    private String cipherSuite;
+
+    @Value("${ibm.mq.ssl.trustStore}")
+    private String trustStorePath;
+
+    @Value("${ibm.mq.ssl.trustStorePassword}")
+    private String trustStorePassword;
+
+    @Bean
+    public ConnectionFactory mqConnectionFactory() throws Exception {
+        MQConnectionFactory factory = new MQConnectionFactory();
+        factory.setTransportType(WMQConstants.WMQ_CM_CLIENT);
+        factory.setQueueManager(queueManager);
+        factory.setChannel(channel);
+        factory.setConnectionNameList(connName);
+        factory.setStringProperty(WMQConstants.USERID, user);
+        factory.setStringProperty(WMQConstants.PASSWORD, password);
+
+        factory.setSSLFipsRequired(false);
+        factory.setSSLCipherSuite(cipherSuite);
+
+        // Set SSL Context
+        SSLContext sslContext = createSSLContext();
+        factory.setSSLSocketFactory(sslContext.getSocketFactory());
+
+        return factory;
+    }
+
+    private SSLContext createSSLContext() throws Exception {
+        KeyStore trustStore = KeyStore.getInstance("JKS");
+        trustStore.load(new FileInputStream(trustStorePath.replace("classpath:", "")), trustStorePassword.toCharArray());
+
+        TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
+        tmf.init(trustStore);
+
+        SSLContext sslContext = SSLContext.getInstance("TLS");
+        sslContext.init(null, tmf.getTrustManagers(), null);
+        return sslContext;
+    }
+
+    @Bean
+    public JmsTemplate jmsTemplate() throws Exception {
+        return new JmsTemplate(mqConnectionFactory());
+    }
+
+    @Bean
+    public DefaultJmsListenerContainerFactory jmsListenerContainerFactory() throws Exception {
+        DefaultJmsListenerContainerFactory factory = new DefaultJmsListenerContainerFactory();
+        factory.setConnectionFactory(mqConnectionFactory());
+        factory.setConcurrency("1-1");
+        return factory;
+    }
+}
