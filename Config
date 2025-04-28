@@ -1,0 +1,54 @@
+import com.ibm.mq.jms.MQConnectionFactory;
+import com.ibm.msg.client.wmq.WMQConstants;
+import jakarta.jms.ConnectionFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.jms.annotation.EnableJms;
+import org.springframework.jms.config.DefaultJmsListenerContainerFactory;
+import org.springframework.jms.core.JmsTemplate;
+
+@Configuration
+@EnableJms
+public class MqConfig {
+
+    @Value("${ibm.mq.queueManager}")
+    private String queueManager;
+
+    @Value("${ibm.mq.channel}")
+    private String channel;
+
+    @Value("${ibm.mq.connName}")
+    private String connName;
+
+    @Value("${ibm.mq.user}")
+    private String user;
+
+    @Value("${ibm.mq.password}")
+    private String password;
+
+    @Bean
+    public ConnectionFactory mqConnectionFactory() throws Exception {
+        MQConnectionFactory factory = new MQConnectionFactory();
+        factory.setTransportType(WMQConstants.WMQ_CM_CLIENT);
+        factory.setQueueManager(queueManager);
+        factory.setChannel(channel);
+        factory.setConnectionNameList(connName);
+        factory.setStringProperty(WMQConstants.USERID, user);
+        factory.setStringProperty(WMQConstants.PASSWORD, password);
+        return factory;
+    }
+
+    @Bean
+    public JmsTemplate jmsTemplate() throws Exception {
+        return new JmsTemplate(mqConnectionFactory());
+    }
+
+    @Bean
+    public DefaultJmsListenerContainerFactory jmsListenerContainerFactory() throws Exception {
+        DefaultJmsListenerContainerFactory factory = new DefaultJmsListenerContainerFactory();
+        factory.setConnectionFactory(mqConnectionFactory());
+        factory.setConcurrency("1-1");
+        return factory;
+    }
+}
