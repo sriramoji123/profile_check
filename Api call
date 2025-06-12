@@ -1,0 +1,79 @@
+// ------------ Microservice A ------------ // Controller: Sends list to Microservice B @RestController @RequestMapping("/api/items") public class ItemController {
+
+@Autowired
+private ItemService itemService;
+
+@PostMapping("/process")
+public ResponseEntity<ProcessResponse> processItems() {
+    List<ItemDTO> items = itemService.fetchItemsFromDb();
+    ProcessResponse response = itemService.sendToProcessingService(items);
+    return ResponseEntity.ok(response);
+}
+
+}
+
+@Service public class ItemService {
+
+@Autowired
+private RestTemplate restTemplate;
+
+public List<ItemDTO> fetchItemsFromDb() {
+    // Mocked for example
+    return List.of(new ItemDTO(1L, "Item1"), new ItemDTO(2L, "Item2"));
+}
+
+public ProcessResponse sendToProcessingService(List<ItemDTO> items) {
+    String url = "http://MICROSERVICE-B/api/process";
+    HttpEntity<List<ItemDTO>> request = new HttpEntity<>(items);
+    ResponseEntity<ProcessResponse> response = restTemplate.exchange(url, HttpMethod.POST, request,
+            ProcessResponse.class);
+    return response.getBody();
+}
+
+}
+
+// ------------ Microservice B ------------ // Controller: Accepts item list and processes @RestController @RequestMapping("/api/process") public class ProcessController {
+
+@Autowired
+private ExternalService externalService;
+
+@PostMapping
+public ResponseEntity<ProcessResponse> processItems(@RequestBody List<ItemDTO> items) {
+    List<SuccessResult> successes = new ArrayList<>();
+    List<FailureResult> failures = new ArrayList<>();
+
+    for (ItemDTO item : items) {
+        try {
+            List<Object> results = externalService.callExternalApi(item);
+            successes.add(new SuccessResult(item.getId(), results));
+        } catch (Exception ex) {
+            failures.add(new FailureResult(item.getId(), ex.getMessage()));
+        }
+    }
+
+    ProcessResponse response = new ProcessResponse(successes, failures);
+    return ResponseEntity.ok(response);
+}
+
+}
+
+@Service public class ExternalService {
+
+@Autowired
+private RestTemplate restTemplate;
+
+public List<Object> callExternalApi(ItemDTO item) {
+    String url = "http://EXTERNAL-API/endpoint";
+    ResponseEntity<Object[]> response = restTemplate.postForEntity(url, item, Object[].class);
+
+    if (response.getStatusCode().is2xxSuccessful()) {
+        return response.getBody() != null ? Arrays.asList(response.getBody()) : List.of();
+    } else {
+        throw new RuntimeException("External API call failed");
+    }
+}
+
+}
+
+// ------------ Shared DTOs ------------ @Data @AllArgs
+
