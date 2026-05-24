@@ -1,0 +1,31 @@
+---
+description: Trace and optimize a Spring Boot API endpoint across all its related layers (Controller, Service, Repository, DTO).
+argument-hint: [endpoint-path-or-controller-name]
+allowed-tools: [Bash, Read, Edit]
+---
+
+You are an expert Spring Boot performance engineer. The user wants to optimize the API or Controller specified in: $ARGUMENTS
+
+Please follow these strict execution steps to analyze and optimize the API and all its cascading dependencies:
+
+### Step 1: Trace the API Flow
+1. Locate the Controller handling `$ARGUMENTS`.
+2. Identify the targeted endpoint method, its incoming request DTOs, and outgoing response DTOs.
+3. Trace into the corresponding `Service` layer method(s).
+4. Trace further down into the `Repository` or data access layer (Spring Data JPA, MyBatis, JDBC, etc.).
+
+### Step 2: Performance & Architectural Analysis
+Analyze the code across all traced files for the following Spring Boot / JPA bottlenecks:
+- **N+1 Query Problems:** Look for Eager fetching or unoptimized `@OneToMany` / `@ManyToMany` relationships.
+- **Database Indexing:** Check if the repository query fields have corresponding DB indexes.
+- **Data Transfer Overhead:** Ensure entities aren't being leaked directly to the API layer; check if DTO mapping can be optimized.
+- **Unnecessary Processing:** Look for heavy loops, redundant DB calls, or blocking sync calls that could be asynchronous (`@Async`).
+- **Caching Opportunities:** Identify if data is mostly read-heavy and eligible for `@Cacheable`.
+
+### Step 3: Propose and Apply Optimizations
+Present a clear optimization plan to the user. For each layer:
+1. Show a clear diff of the proposed changes.
+2. Optimize SQL/JPA queries (e.g., suggesting `join fetch` or custom JPQL/Native queries).
+3. Update the Java code for better memory management or stream optimizations.
+
+After user confirmation, use your Edit tools to apply the optimizations safely without breaking existing business logic.
