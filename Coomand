@@ -1,31 +1,32 @@
 ---
-description: Trace and optimize a Spring Boot API endpoint across all its related layers (Controller, Service, Repository, DTO).
+description: Trace and optimize a Spring Boot API endpoint, specifically fixing fragmented database writes, multiple DB round-trips, and related entity updates.
 argument-hint: [endpoint-path-or-controller-name]
 allowed-tools: [Bash, Read, Edit]
 ---
 
-You are an expert Spring Boot performance engineer. The user wants to optimize the API or Controller specified in: $ARGUMENTS
+You are an expert Spring Boot performance and database engineer. The user wants to optimize the API or Controller specified in: $ARGUMENTS. 
 
-Please follow these strict execution steps to analyze and optimize the API and all its cascading dependencies:
+Pay extreme attention to eliminating fragmented, individual database writes for related tables, and consolidate them into efficient, atomic operations.
 
-### Step 1: Trace the API Flow
+Please follow these strict execution steps to analyze and optimize the API:
+
+### Step 1: Trace the API Flow & Database Writes
 1. Locate the Controller handling `$ARGUMENTS`.
-2. Identify the targeted endpoint method, its incoming request DTOs, and outgoing response DTOs.
-3. Trace into the corresponding `Service` layer method(s).
-4. Trace further down into the `Repository` or data access layer (Spring Data JPA, MyBatis, JDBC, etc.).
+2. Trace into the corresponding `Service` layer method(s).
+3. Identify all database write operations (saves, updates, deletes) occurring during this single API call. Map out which related tables are being touched sequentially.
 
-### Step 2: Performance & Architectural Analysis
-Analyze the code across all traced files for the following Spring Boot / JPA bottlenecks:
-- **N+1 Query Problems:** Look for Eager fetching or unoptimized `@OneToMany` / `@ManyToMany` relationships.
-- **Database Indexing:** Check if the repository query fields have corresponding DB indexes.
-- **Data Transfer Overhead:** Ensure entities aren't being leaked directly to the API layer; check if DTO mapping can be optimized.
-- **Unnecessary Processing:** Look for heavy loops, redundant DB calls, or blocking sync calls that could be asynchronous (`@Async`).
-- **Caching Opportunities:** Identify if data is mostly read-heavy and eligible for `@Cacheable`.
+### Step 2: Performance & Transactional Analysis
+Analyze the code across all traced files for the following bottlenecks:
+- **Fragmented DB Round-trips:** Look for places where the code makes multiple sequential repository calls (e.g., `repoA.save()`, then `repoB.save()`) to update related tables instead of leveraging JPA relationships or batching.
+- **Missing or Poor Transaction Boundaries:** Check if the service method lacks `@Transactional`. Ensure all interrelated writes are wrapped in a single transaction so they succeed or fail together (Atomicity).
+- **Unoptimized JPA Relationships:** Check if `@OneToMany`, `@ManyToOne`, or `@OneToOne` mappings are missing proper `cascade = CascadeType.ALL` or `orphanRemoval` properties, which could automate and optimize these cascading saves in a single persistence context flush.
+- **N+1 Query & Caching Issues:** Look for heavy read loops before the updates.
+- **Data Transfer Overhead:** Ensure entities aren't leaking directly to the API layer.
 
 ### Step 3: Propose and Apply Optimizations
-Present a clear optimization plan to the user. For each layer:
-1. Show a clear diff of the proposed changes.
-2. Optimize SQL/JPA queries (e.g., suggesting `join fetch` or custom JPQL/Native queries).
-3. Update the Java code for better memory management or stream optimizations.
+Present a clear optimization plan to the user. For the database layer:
+1. **Consolidate Writes:** Show how to refactor the code to use a single transactional unit, using JPA cascading (`cascade = CascadeType.MERGE / PERSIST`) or Spring Data's batch capabilities to update related tables in one go.
+2. **Transaction Management:** Apply `@Transactional(rollbackFor = Exception.class)` at the appropriate service boundary to guarantee data integrity across all related tables.
+3. Show a clear diff of the proposed changes across the Controller, Service, and Entity/Repository layers.
 
 After user confirmation, use your Edit tools to apply the optimizations safely without breaking existing business logic.
